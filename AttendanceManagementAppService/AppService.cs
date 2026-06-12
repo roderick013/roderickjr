@@ -1,4 +1,4 @@
-﻿    using System;
+    using System;
     using System.Collections.Generic;
     using AttendanceManagementModels;
     using AttendanceManagementDataService;
@@ -7,12 +7,11 @@
     {
         public class AttendanceAppService
         {
-            private AttendanceDataService _dataService;
+            private AttendanceDataService _dataService = new AttendanceDataService(new MySqlDataService());
             private int _totalDays;
 
-            public AttendanceAppService(AttendanceDataService service, int totalDays)
+            public AttendanceAppService(int totalDays)
             {
-                _dataService = service;
                 _totalDays = totalDays;
             }
 
@@ -23,8 +22,12 @@
 
                 foreach (var student in students)
                 {
-                    Console.Write($"Is {student.Name} present? (P/A): ");
-                    string input = Console.ReadLine().ToUpper();
+                    string input = "";
+                    while (input != "P" && input != "A")
+                    {
+                        Console.Write($"Is {student.Name} present? (P/A): ");
+                        input = (Console.ReadLine() ?? "").ToUpper();
+                    }
                     int status = (input == "P") ? 1 : 0;
 
                 
@@ -53,14 +56,22 @@
 
         public void PrintOverallSummary()
         {
- 
             var students = _dataService.GetStudents(_totalDays);
 
-            Console.WriteLine("\n=== Each Student Total Attendance (From DB) ===");
+            Console.WriteLine("\n=== Detailed Attendance Summary Per Student ===");
             foreach (var student in students)
             {
-                
-                Console.WriteLine($"{student.Name} was present for {student.TotalPresent()} out of {_totalDays} days.");
+                Console.WriteLine($"\nStudent: {student.Name}");
+                Console.WriteLine("-------------------------");
+
+                for (int day = 0; day < _totalDays; day++)
+                {
+                   
+                    string statusText = (student.Attendance[day] == 1) ? "Present" : "Absent";
+                    Console.WriteLine($"Day {day + 1}: {statusText}");
+                }
+
+                Console.WriteLine($"Total: {student.TotalPresent()} out of {_totalDays} days present.");
             }
         }
     }

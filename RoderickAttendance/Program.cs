@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AttendanceManagementDataService;
 using AttendanceManagementAppService;
@@ -20,7 +20,7 @@ namespace roderickjr
                 Console.Write("Enter Password: ");
                 string p = Console.ReadLine() ?? "";
 
-                if (u == "roderickorfella" && p == "roderick")
+                if (u == "admin" && p == "123")
                 {
                     Console.WriteLine($"\nLogin successful! Welcome, {u}!");
                     break;
@@ -28,22 +28,22 @@ namespace roderickjr
                 Console.WriteLine("Invalid credentials. Try again.");
             }
 
-            var dataService = new AttendanceDataService();
-            var jsonService = new JsonDataService();
+            AttendanceDataService dataService = new AttendanceDataService(new MySqlDataService());
             int totalDays = 3;
-            var appService = new AttendanceAppService(dataService, totalDays);
+            var appService = new AttendanceAppService(totalDays);
 
             bool running = true;
             while (running)
             {
                 Console.WriteLine("\n--- Main Menu ---");
-                Console.WriteLine("1. View/Add Students");
-                Console.WriteLine("2. Update Student Name");
-                Console.WriteLine("3. Delete Student");
-                Console.WriteLine("4. Record New Attendance (Bulk)");
-                Console.WriteLine("5. Edit Specific Attendance Record"); 
-                Console.WriteLine("6. View Overall Summary (Sync to JSON)");
-                Console.WriteLine("7. Exit");
+                Console.WriteLine("1. View Students");
+                Console.WriteLine("2. Add Student");
+                Console.WriteLine("3. Update Student Name");
+                Console.WriteLine("4. Delete Student");
+                Console.WriteLine("5. Record New Attendance (Specific Day)");
+                Console.WriteLine("6. Edit Specific Attendance Record"); 
+                Console.WriteLine("7. View Overall Summary");
+                Console.WriteLine("8. Exit");
                 Console.Write("Select an option: ");
 
                 string choice = Console.ReadLine() ?? "";
@@ -53,59 +53,84 @@ namespace roderickjr
                     case "1":
                         var students = dataService.GetStudents(totalDays);
                         Console.WriteLine("\n--- Current Students ---");
+                        if (students.Count == 0) Console.WriteLine("(No students found)");
                         foreach (var s in students) Console.WriteLine($"- {s.Name}");
-                        Console.Write("\nEnter new name (or Enter to skip): ");
-                        string name = Console.ReadLine() ?? "";
-                        if (!string.IsNullOrEmpty(name)) dataService.AddStudent(name);
                         break;
 
                     case "2":
-                        Console.Write("Enter current name: ");
-                        string oldN = Console.ReadLine() ?? "";
-                        Console.Write("Enter new name: ");
-                        string newN = Console.ReadLine() ?? "";
-                        dataService.UpdateStudent(oldN, newN);
+                        Console.Write("\nEnter new student name: ");
+                        string name = Console.ReadLine() ?? "";
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            dataService.AddStudent(name);
+                            Console.WriteLine($"Student '{name}' added successfully!");
+                        }
                         break;
 
                     case "3":
-                        Console.Write("Enter name to delete: ");
-                        dataService.DeleteStudent(Console.ReadLine() ?? "");
+                        Console.Write("\nEnter current name: ");
+                        string oldN = Console.ReadLine() ?? "";
+                        Console.Write("Enter new name: ");
+                        string newN = Console.ReadLine() ?? "";
+                        if (!string.IsNullOrEmpty(oldN) && !string.IsNullOrEmpty(newN))
+                        {
+                            dataService.UpdateStudent(oldN, newN);
+                            Console.WriteLine($"Student '{oldN}' updated to '{newN}' successfully!");
+                        }
                         break;
 
                     case "4":
-                        for (int day = 0; day < totalDays; day++)
+                        Console.Write("\nEnter name to delete: ");
+                        string delName = Console.ReadLine() ?? "";
+                        if (!string.IsNullOrEmpty(delName))
                         {
-                            Console.WriteLine($"\n--- Day {day + 1} ---");
-                            appService.RecordDayAttendance(day);
+                            dataService.DeleteStudent(delName);
+                            Console.WriteLine($"Student '{delName}' deleted successfully!");
                         }
                         break;
 
-                    case "5": 
-                        Console.Write("Enter Student Name: ");
-                        string targetName = Console.ReadLine() ?? "";
-                        Console.Write($"Enter Day Index (0 to {totalDays - 1}): ");
-                        if (int.TryParse(Console.ReadLine(), out int targetDay))
+                    case "5":
+                        Console.Write($"\nEnter Day to Record Attendance (1 to {totalDays}): ");
+                        if (int.TryParse(Console.ReadLine(), out int recDay) && recDay >= 1 && recDay <= totalDays)
                         {
-                            Console.Write("Enter New Status (P for Present / A for Absent): ");
-                            string input = Console.ReadLine()?.ToLower() ?? "";
-                            int newStatus = (input == "p") ? 1 : 0;
+                            Console.WriteLine($"\n--- Day {recDay} ---");
+                            appService.RecordDayAttendance(recDay - 1);
+                            Console.WriteLine($"Attendance for Day {recDay} recorded successfully!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid day selected.");
+                        }
+                        break;
 
+                    case "6": 
+                        Console.Write("\nEnter Student Name: ");
+                        string targetName = Console.ReadLine() ?? "";
+                        Console.Write($"Enter Day (1 to {totalDays}): ");
+                        if (int.TryParse(Console.ReadLine(), out int targetDay) && targetDay >= 1 && targetDay <= totalDays)
+                        {
+                            string input = "";
+                            while (input != "P" && input != "A")
+                            {
+                                Console.Write("Enter New Status (P for Present / A for Absent): ");
+                                input = (Console.ReadLine() ?? "").ToUpper();
+                            }
+                            int newStatus = (input == "P") ? 1 : 0;
                            
-                            dataService.RecordAttendance(targetName, targetDay, newStatus);
-
-                    
-                            jsonService.SaveToJson(dataService.GetStudents(totalDays));
+                            dataService.RecordAttendance(targetName, targetDay - 1, newStatus);
                             Console.WriteLine("Record updated successfully!");
                         }
-                        break;
-
-                    case "6":
-                        appService.PrintOverallSummary();
-                        jsonService.SaveToJson(dataService.GetStudents(totalDays));
+                        else
+                        {
+                            Console.WriteLine("Invalid day selected.");
+                        }
                         break;
 
                     case "7":
-                        jsonService.SaveToJson(dataService.GetStudents(totalDays));
+                        appService.PrintOverallSummary();
+                        break;
+
+                    case "8":
                         running = false;
                         break;
                 }
